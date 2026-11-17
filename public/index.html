@@ -356,9 +356,51 @@
         }
 
         function logout() {
+            // 1. Stop any active tracking intervals
+            if (window.trackingPoll) clearInterval(window.trackingPoll);
+            
+            // 2. Hide the tracker banner immediately
+            const tracker = document.getElementById('orderTracker');
+            if (tracker) tracker.classList.add('translate-y-full');
+            
+            // 3. Clear ALL bakery data from browser memory
             localStorage.removeItem('bakeryUser');
+            localStorage.removeItem('activeOrderId');
+            
+            // 4. Reset local variables
             user = null;
+            activeOrderId = null;
+            cart = [];
+            
+            // 5. Refresh the page to show the logged-out state
             location.reload();
+        }
+
+        // Update the startTracking function to save the interval ID
+        function startTracking(orderId) {
+            const tracker = document.getElementById('orderTracker');
+            document.getElementById('trackId').innerText = `#${orderId}`;
+            tracker.classList.remove('translate-y-full');
+
+            // Save the interval to a global variable so logout() can stop it
+            window.trackingPoll = setInterval(async () => {
+                try {
+                    const res = await fetch(`/api/orders/track/${orderId}?t=${Date.now()}`);
+                    const data = await res.json();
+                    
+                    if (!data) return;
+                    const statusEl = document.getElementById('trackStatus');
+                    statusEl.innerText = data.status;
+                    
+                    if (data.status === 'Ready') {
+                        statusEl.className = 'font-black uppercase tracking-wider text-amber-300 animate-pulse';
+                    } else if (data.status === 'Completed' || data.status === 'Cancelled') {
+                        statusEl.className = 'font-bold uppercase tracking-wider text-emerald-400';
+                        document.getElementById('dismissTracker').classList.remove('hidden');
+                        clearInterval(window.trackingPoll);
+                    }
+                } catch(e) {}
+            }, 5000);
         }
 
         // --- CATALOG LOGIC ---
