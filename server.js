@@ -202,7 +202,7 @@ app.get('/api/admin/audit-trail', async (req, res) => {
 });
 
 // --- SERVER INITIALIZATION ---
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`\n======================================================`);
     console.log(`🚀 CBOOS Backend Server Active on Port ${PORT}`);
