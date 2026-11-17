@@ -206,6 +206,11 @@
             const email = document.getElementById('adminEmail').value;
             const password = document.getElementById('adminPassword').value;
 
+            const btn = e.target.querySelector('button[type="submit"]');
+            const originalText = btn.innerText;
+            btn.innerText = "Verifying Credentials...";
+            btn.disabled = true;
+
             try {
                 const res = await fetch('/api/auth/login', {
                     method: 'POST',
@@ -224,7 +229,10 @@
                     alert(data.error || "Invalid credentials");
                 }
             } catch (err) {
-                alert("Cannot connect to server. Ensure node server.js is running.");
+                alert("The cloud server is currently waking up from sleep. Please wait 15-20 seconds and click Authenticate again!");
+            } finally {
+                btn.innerText = originalText;
+                btn.disabled = false;
             }
         }
 

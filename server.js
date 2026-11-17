@@ -20,6 +20,39 @@ async function logAudit(userId, action, details) {
     }
 }
 
+// --- AUTO-SEED / PASSWORD GUARANTEE ON BOOT ---
+async function ensureSeedUsers() {
+    try {
+        const passwordHash = await bcrypt.hash('password123', 10);
+
+        // Ensure Admin exists with guaranteed password123
+        const [admin] = await db.query('SELECT user_id FROM users WHERE email = ?', ['admin@bakery.com']);
+        if (admin.length > 0) {
+            await db.query('UPDATE users SET password_hash = ? WHERE email = ?', [passwordHash, 'admin@bakery.com']);
+        } else {
+            await db.query(
+                'INSERT INTO users (full_name, email, password_hash, role) VALUES (?, ?, ?, ?)',
+                ['System Admin', 'admin@bakery.com', passwordHash, 'admin']
+            );
+        }
+
+        // Ensure Student exists with guaranteed password123
+        const [student] = await db.query('SELECT user_id FROM users WHERE email = ?', ['john@student.com']);
+        if (student.length > 0) {
+            await db.query('UPDATE users SET password_hash = ? WHERE email = ?', [passwordHash, 'john@student.com']);
+        } else {
+            await db.query(
+                'INSERT INTO users (full_name, email, password_hash, role) VALUES (?, ?, ?, ?)',
+                ['John Student', 'john@student.com', passwordHash, 'customer']
+            );
+        }
+
+        console.log('✅ Default users verified! (admin@bakery.com & john@student.com / password123)');
+    } catch (err) {
+        console.error('⚠️ User seed notice:', err.message);
+    }
+}
+
 // --- 1. AUTHENTICATION & ACCESS CONTROL ---
 
 // Register
@@ -56,56 +89,51 @@ app.post('/api/auth/login', async (req, res) => {
             role: users[0].role 
         });
     } catch (err) {
-        res.status(500).json({ error: "Server error" });
-    }
-});
-
-// Password Reset (Forgot Password Facility)
-app.post('/api/auth/forgot-password', async (req, res) => {
-    try {
-        const { email, new_password } = req.body;
-        const [users] = await db.query('SELECT user_id FROM users WHERE email = ?', [email]);
-        if (users.length === 0) return res.status(404).json({ error: "Account not found." });
-
-        const newHash = await bcrypt.hash(new_password || 'password123', 10);
-        await db.query('UPDATE users SET password_hash = ? WHERE email = ?', [newHash, email]);
-        await logAudit(users[0].user_id, 'PASSWORD_RESET', `Password reset for: ${email}`);
-
-        res.json({ success: true, message: "Password updated successfully to temporary password!" });
-    } catch (err) {
-        res.status(500).json({ error: "Reset failed." });
+        res.status(500).json({ error: "Server error: " + err.message });
     }
 });
 
 // --- 2. PRODUCT MANAGEMENT (CRUD) ---
 
 app.get('/api/products', async (req, res) => {
-    const [rows] = await db.query('SELECT * FROM products WHERE is_available = 1');
-    res.json(rows);
+    try {
+        const [rows] = await db.query('SELECT * FROM products WHERE is_available = 1');
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 app.post('/api/products/manage', async (req, res) => {
-    const { product_id, name, description, category, price, stock_qty, image_url } = req.body;
-    if (product_id) {
-        await db.query(
-            'UPDATE products SET name=?, description=?, category=?, price=?, stock_qty=?, image_url=? WHERE product_id=?',
-            [name, description, category, price, stock_qty, image_url, product_id]
-        );
-        await logAudit(null, 'PRODUCT_UPDATE', `Updated product: ${name} (ID: ${product_id})`);
-    } else {
-        const [resProd] = await db.query(
-            'INSERT INTO products (name, description, category, price, stock_qty, image_url) VALUES (?,?,?,?,?,?)',
-            [name, description, category, price, stock_qty, image_url]
-        );
-        await logAudit(null, 'PRODUCT_CREATE', `Created product: ${name} (ID: ${resProd.insertId})`);
+    try {
+        const { product_id, name, description, category, price, stock_qty, image_url } = req.body;
+        if (product_id) {
+            await db.query(
+                'UPDATE products SET name=?, description=?, category=?, price=?, stock_qty=?, image_url=? WHERE product_id=?',
+                [name, description, category, price, stock_qty, image_url, product_id]
+            );
+            await logAudit(null, 'PRODUCT_UPDATE', `Updated product: ${name} (ID: ${product_id})`);
+        } else {
+            const [resProd] = await db.query(
+                'INSERT INTO products (name, description, category, price, stock_qty, image_url) VALUES (?,?,?,?,?,?)',
+                [name, description, category, price, stock_qty, image_url]
+            );
+            await logAudit(null, 'PRODUCT_CREATE', `Created product: ${name} (ID: ${resProd.insertId})`);
+        }
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
-    res.json({ success: true });
 });
 
 app.delete('/api/products/:id', async (req, res) => {
-    await db.query('DELETE FROM products WHERE product_id = ?', [req.params.id]);
-    await logAudit(null, 'PRODUCT_DELETE', `Deleted product ID: ${req.params.id}`);
-    res.json({ success: true });
+    try {
+        await db.query('DELETE FROM products WHERE product_id = ?', [req.params.id]);
+        await logAudit(null, 'PRODUCT_DELETE', `Deleted product ID: ${req.params.id}`);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // --- 3. ACID ORDER TRANSACTION ---
@@ -161,52 +189,71 @@ app.post('/api/orders/place', async (req, res) => {
 // --- 4. TRACKING, REPORTS & ADMIN AUDIT QUEUE ---
 
 app.get('/api/orders/track/:orderId', async (req, res) => {
-    const [rows] = await db.query('SELECT status, payment_status FROM orders WHERE order_id = ?', [req.params.orderId]);
-    res.json(rows[0]);
+    try {
+        const [rows] = await db.query('SELECT status, payment_status FROM orders WHERE order_id = ?', [req.params.orderId]);
+        res.json(rows[0] || { status: 'Pending' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 app.get('/api/admin/orders', async (req, res) => {
-    const query = `
-        SELECT o.*, u.full_name, 
-        GROUP_CONCAT(CONCAT(p.name, ' (x', oi.quantity, ')') SEPARATOR ', ') as items_summary
-        FROM orders o
-        JOIN users u ON o.user_id = u.user_id
-        JOIN order_items oi ON o.order_id = oi.order_id
-        JOIN products p ON oi.product_id = p.product_id
-        GROUP BY o.order_id
-        ORDER BY o.created_at DESC
-    `;
-    const [rows] = await db.query(query);
-    res.json(rows);
+    try {
+        const query = `
+            SELECT o.*, u.full_name, 
+            GROUP_CONCAT(CONCAT(p.name, ' (x', oi.quantity, ')') SEPARATOR ', ') as items_summary
+            FROM orders o
+            JOIN users u ON o.user_id = u.user_id
+            JOIN order_items oi ON o.order_id = oi.order_id
+            JOIN products p ON oi.product_id = p.product_id
+            GROUP BY o.order_id
+            ORDER BY o.created_at DESC
+        `;
+        const [rows] = await db.query(query);
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 app.patch('/api/admin/orders/:id', async (req, res) => {
-    const { status, payment_status } = req.body;
-    if (status) await db.query('UPDATE orders SET status = ? WHERE order_id = ?', [status, req.params.id]);
-    if (payment_status) await db.query('UPDATE orders SET payment_status = ? WHERE order_id = ?', [payment_status, req.params.id]);
-    
-    await logAudit(null, 'ORDER_UPDATE', `Order #${req.params.id} updated: Status=${status || 'unchanged'}, Payment=${payment_status || 'unchanged'}`);
-    res.json({ success: true });
+    try {
+        const { status, payment_status } = req.body;
+        if (status) await db.query('UPDATE orders SET status = ? WHERE order_id = ?', [status, req.params.id]);
+        if (payment_status) await db.query('UPDATE orders SET payment_status = ? WHERE order_id = ?', [payment_status, req.params.id]);
+        
+        await logAudit(null, 'ORDER_UPDATE', `Order #${req.params.id} updated: Status=${status || 'unchanged'}, Payment=${payment_status || 'unchanged'}`);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
-// Audit Trail Retrieval Endpoint
+// Audit Trail Retrieval
 app.get('/api/admin/audit-trail', async (req, res) => {
-    const [logs] = await db.query(`
-        SELECT a.*, u.email as user_email 
-        FROM audit_logs a 
-        LEFT JOIN users u ON a.user_id = u.user_id 
-        ORDER BY a.created_at DESC 
-        LIMIT 50
-    `);
-    res.json(logs);
+    try {
+        const [logs] = await db.query(`
+            SELECT a.*, u.email as user_email 
+            FROM audit_logs a 
+            LEFT JOIN users u ON a.user_id = u.user_id 
+            ORDER BY a.created_at DESC 
+            LIMIT 50
+        `);
+        res.json(logs);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // --- SERVER INITIALIZATION ---
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
     console.log(`\n======================================================`);
-    console.log(`🚀 CBOOS Backend Server Active on Port ${PORT}`);
-    console.log(`🔗 Student Storefront: http://localhost:${PORT}`);
-    console.log(`🔗 Staff Admin Portal: http://localhost:${PORT}/admin.html`);
+    console.log(`🚀 CBOOS Server running on port ${PORT}`);
+    console.log(`🔗 Storefront: http://localhost:${PORT}`);
+    console.log(`🔗 Staff Admin: http://localhost:${PORT}/admin.html`);
     console.log(`======================================================\n`);
+    
+    // Automatically guarantee seed passwords on startup
+    await ensureSeedUsers();
 });

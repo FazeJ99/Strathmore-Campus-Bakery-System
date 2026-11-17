@@ -52,7 +52,7 @@
             </div>
             
             <div class="flex items-center gap-4 sm:gap-6 font-medium">
-                <a href="admin.html" class="hidden md:inline-block text-xs uppercase font-bold tracking-widest text-stone-500 hover:text-orange-600 transition">Staff Portal</a>
+                <a href="admin.html" target="_blank" rel="noopener noreferrer" class="hidden md:inline-block text-xs uppercase font-bold tracking-widest text-stone-500 hover:text-orange-600 transition">Staff Portal</a>
                 
                 <div id="userSection">
                     <button onclick="toggleModal('loginModal')" class="bg-stone-900 text-white px-5 py-2.5 rounded-full hover:bg-stone-800 transition text-xs font-bold">Login</button>
@@ -310,6 +310,7 @@
             document.getElementById('authToggleButton').innerText = isLogin ? 'Create Account' : 'Sign In';
         }
 
+        
         async function handleAuth(e) {
             e.preventDefault();
             const email = document.getElementById('authEmail').value;
@@ -318,6 +319,11 @@
 
             const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
             const body = isLogin ? { email, password } : { email, password, full_name };
+
+            const btn = e.target.querySelector('button[type="submit"]');
+            const originalText = btn.innerText;
+            btn.innerText = "Connecting to server...";
+            btn.disabled = true;
 
             try {
                 const res = await fetch(endpoint, {
@@ -341,7 +347,12 @@
                 } else {
                     alert(data.error || 'Authentication failed');
                 }
-            } catch (err) { alert('Server connection failed.'); }
+            } catch (err) { 
+                alert('Server is waking up (Render free tier). Please wait 15 seconds and try once more!'); 
+            } finally {
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
         }
 
         function logout() {
