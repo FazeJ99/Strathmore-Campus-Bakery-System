@@ -197,11 +197,21 @@ app.get('/api/orders/track/:orderId', async (req, res) => {
     }
 });
 
+// Admin: Get All Orders (Fixed for ONLY_FULL_GROUP_BY compatibility)
 app.get('/api/admin/orders', async (req, res) => {
     try {
         const query = `
-            SELECT o.*, u.full_name, 
-            GROUP_CONCAT(CONCAT(p.name, ' (x', oi.quantity, ')') SEPARATOR ', ') as items_summary
+            SELECT 
+                o.order_id, 
+                ANY_VALUE(o.user_id) as user_id, 
+                ANY_VALUE(o.total_price) as total_price, 
+                ANY_VALUE(o.payment_method) as payment_method, 
+                ANY_VALUE(o.payment_status) as payment_status, 
+                ANY_VALUE(o.status) as status, 
+                ANY_VALUE(o.pickup_time) as pickup_time, 
+                ANY_VALUE(o.created_at) as created_at,
+                ANY_VALUE(u.full_name) as full_name, 
+                GROUP_CONCAT(CONCAT(p.name, ' (x', oi.quantity, ')') SEPARATOR ', ') as items_summary
             FROM orders o
             JOIN users u ON o.user_id = u.user_id
             JOIN order_items oi ON o.order_id = oi.order_id
@@ -212,7 +222,8 @@ app.get('/api/admin/orders', async (req, res) => {
         const [rows] = await db.query(query);
         res.json(rows);
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error("Admin Orders Fetch Error:", err.message);
+        res.status(500).json({ error: "Database error: " + err.message });
     }
 });
 
