@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CBOOS | Staff Operations Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Plus Jakarta Sans', sans-serif; }</style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen">
+
+    <!-- Admin Authentication Gate -->
+    <div id="adminGate" class="fixed inset-0 z-50 bg-slate-950 flex items-center justify-center p-4">
+        <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full border border-slate-100">
+            <div class="w-12 h-12 bg-orange-600 rounded-2xl flex items-center justify-center text-white font-extrabold text-xl italic mb-4 shadow-lg shadow-orange-600/30">CB</div>
+            <h2 class="text-2xl font-extrabold tracking-tight text-slate-900 mb-1">Staff Portal</h2>
+            <p class="text-slate-400 text-xs mb-6">Enter administrative credentials to manage kitchen fulfillment and menu catalog.</p>
+            
+            <form onsubmit="handleAdminLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Staff Email</label>
+                    <input type="email" id="adminEmail" required value="admin@bakery.com" class="w-full p-3 border rounded-xl text-sm bg-slate-50 outline-none focus:ring-2 focus:ring-orange-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Password</label>
+                    <input type="password" id="adminPassword" required value="password123" class="w-full p-3 border rounded-xl text-sm bg-slate-50 outline-none focus:ring-2 focus:ring-orange-500">
+                </div>
+                <button type="submit" class="w-full bg-orange-600 text-white py-3 rounded-xl font-bold hover:bg-orange-700 transition text-xs uppercase tracking-wider shadow-md">
+                    Authenticate
+                </button>
+            </form>
+            <div class="mt-4 text-center">
+                <a href="index.html" class="text-xs text-slate-400 hover:text-slate-600 underline">← Return to Student Storefront</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Dashboard -->
+    <div id="adminContent" class="hidden">
+        <nav class="bg-white border-b sticky top-0 z-30">
+            <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <span class="bg-orange-600 text-white px-2.5 py-1 rounded-lg font-black text-xs tracking-wider">STAFF</span>
+                    <h1 class="text-base sm:text-lg font-extrabold tracking-tight">CBOOS Operations Center</h1>
+                </div>
+                <div class="flex items-center gap-5">
+                    <a href="index.html" class="text-xs text-slate-500 hover:text-orange-600 font-bold transition">Storefront</a>
+                    <button onclick="refreshData()" class="text-xs text-slate-600 hover:text-orange-600 font-bold flex items-center gap-1.5 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                        Refresh
+                    </button>
+                    <!-- Place inside <nav> next to Refresh Queue button -->
+                    <button onclick="printDailyReport()" class="text-xs text-orange-600 hover:text-orange-700 font-bold flex items-center gap-1.5 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                        </svg>
+                        Generate Sales Report
+                    </button>
+                    <button onclick="adminLogout()" class="text-red-600 font-bold text-xs uppercase tracking-wider hover:underline">Sign Out</button>
+                </div>
+            </div>
+        </nav>
+
+        <main class="max-w-7xl mx-auto px-4 py-8">
+            <!-- Metric KPI Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                    <p class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Active Kitchen Orders</p>
+                    <h3 id="statActive" class="text-3xl font-black text-orange-600">0</h3>
+                </div>
+                <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                    <p class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Unpaid Counter Pickups</p>
+                    <h3 id="statUnpaid" class="text-3xl font-black text-red-600">0</h3>
+                </div>
+                <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                    <p class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Settled Revenue</p>
+                    <h3 id="statRevenue" class="text-3xl font-black text-slate-900">Ksh 0.00</h3>
+                </div>
+            </div>
+
+            <!-- View Tab Selector -->
+            <div class="flex gap-3 mb-6 border-b border-slate-200 pb-4">
+                <button onclick="setTab('orders')" id="tabBtn-orders" class="px-5 py-2.5 rounded-2xl font-bold text-xs uppercase tracking-wider bg-slate-900 text-white transition">Kitchen Queue</button>
+                <button onclick="setTab('products')" id="tabBtn-products" class="px-5 py-2.5 rounded-2xl font-bold text-xs uppercase tracking-wider text-slate-500 hover:bg-slate-200 transition">Menu & Inventory</button>
+            </div>
+
+            <!-- Kitchen Orders View -->
+            <div id="ordersView" class="space-y-4">
+                <!-- Search & Filters -->
+                <div class="bg-white p-4 rounded-2xl border border-slate-100 flex flex-col md:flex-row justify-between gap-4 items-center">
+                    <div class="w-full md:w-72">
+                        <input type="text" id="orderSearch" oninput="renderOrders()" placeholder="Search by student or #ID..." class="w-full p-2.5 border rounded-xl text-xs bg-slate-50 outline-none focus:ring-2 focus:ring-orange-500">
+                    </div>
+
+                    <div class="flex flex-wrap gap-2 items-center">
+                        <button onclick="setStatusFilter('ALL')" class="status-pill px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 text-white">All</button>
+                        <button onclick="setStatusFilter('Pending')" class="status-pill px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 bg-slate-100">Pending</button>
+                        <button onclick="setStatusFilter('In Progress')" class="status-pill px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 bg-slate-100">In Progress</button>
+                        <button onclick="setStatusFilter('Ready')" class="status-pill px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 bg-slate-100">Ready</button>
+                    </div>
+
+                    <label class="flex items-center gap-2 text-xs font-bold text-slate-500 cursor-pointer">
+                        <input type="checkbox" id="historyToggle" onchange="renderOrders()" class="w-4 h-4 rounded text-orange-600"> 
+                        Show Completed
+                    </label>
+                </div>
+                
+                <div id="orderList" class="grid gap-4">
+                    <!-- Kitchen cards injected here -->
+                </div>
+            </div>
+
+            <!-- Products View -->
+            <div id="productsView" class="hidden">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900">Menu Catalog</h2>
+                        <p class="text-xs text-slate-400">Manage pricing, item descriptions, and stock quantities</p>
+                    </div>
+                    <button onclick="openProductModal()" class="bg-orange-600 text-white px-5 py-2.5 rounded-2xl text-xs font-bold hover:bg-orange-700 transition shadow-sm uppercase tracking-wider">+ Add New Item</button>
+                </div>
+                
+                <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead class="bg-slate-50 text-slate-400 font-bold uppercase tracking-wider border-b">
+                            <tr>
+                                <th class="p-4">Item</th>
+                                <th class="p-4">Category</th>
+                                <th class="p-4">Price</th>
+                                <th class="p-4">Current Stock</th>
+                                <th class="p-4">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productTableBody">
+                            <!-- Items injected here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Product Modal -->
+    <div id="productModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-slate-950/60" onclick="closeProductModal()"></div>
+        <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full relative shadow-2xl">
+            <h3 id="modalTitle" class="text-xl font-bold mb-4">Add Bakery Item</h3>
+            <form id="productForm" onsubmit="saveProduct(event)" class="grid grid-cols-2 gap-3 text-xs">
+                <input type="hidden" id="formId">
+                <div class="col-span-2">
+                    <label class="block font-bold uppercase text-slate-400 mb-1">Item Name</label>
+                    <input type="text" id="formName" required class="w-full p-2.5 border rounded-xl text-sm">
+                </div>
+                <div class="col-span-2">
+                    <label class="block font-bold uppercase text-slate-400 mb-1">Description</label>
+                    <textarea id="formDesc" class="w-full p-2.5 border rounded-xl h-20 text-xs"></textarea>
+                </div>
+                <div>
+                    <label class="block font-bold uppercase text-slate-400 mb-1">Category</label>
+                    <select id="formCat" class="w-full p-2.5 border rounded-xl bg-white text-xs">
+                        <option>Bread</option><option>Cakes</option><option>Pastries</option><option>Cookies</option><option>Drinks</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-bold uppercase text-slate-400 mb-1">Price (Ksh)</label>
+                    <input type="number" step="0.01" id="formPrice" required class="w-full p-2.5 border rounded-xl text-sm">
+                </div>
+                <div>
+                    <label class="block font-bold uppercase text-slate-400 mb-1">Stock Quantity</label>
+                    <input type="number" id="formStock" required class="w-full p-2.5 border rounded-xl text-sm">
+                </div>
+                <div>
+                    <label class="block font-bold uppercase text-slate-400 mb-1">Image URL</label>
+                    <input type="text" id="formImg" required class="w-full p-2.5 border rounded-xl text-sm" placeholder="https://images.unsplash...">
+                </div>
+                <div class="col-span-2 flex gap-3 mt-4">
+                    <button type="button" onclick="closeProductModal()" class="flex-1 py-2.5 border rounded-xl font-bold text-slate-600">Cancel</button>
+                    <button type="submit" class="flex-1 py-2.5 bg-orange-600 text-white rounded-xl font-bold hover:bg-orange-700">Save Item</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let allOrders = [];
+        let allProducts = [];
+        let activeTab = 'orders';
+        let statusFilter = 'ALL';
+        const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=800&q=80";
+
+        window.onload = checkInitialAuth;
+
+        function checkInitialAuth() {
+            const user = JSON.parse(localStorage.getItem('bakeryUser'));
+            if (user && user.role === 'admin') {
+                unlockDashboard();
+            } else {
+                document.getElementById('adminGate').classList.remove('hidden');
+                document.getElementById('adminContent').classList.add('hidden');
+            }
+        }
+
+        async function handleAdminLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('adminEmail').value;
+            const password = document.getElementById('adminPassword').value;
+
+            try {
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    if (data.role !== 'admin') {
+                        return alert("Access Denied: This account lacks staff administrative privileges.");
+                    }
+                    localStorage.setItem('bakeryUser', JSON.stringify(data));
+                    unlockDashboard();
+                } else {
+                    alert(data.error || "Invalid credentials");
+                }
+            } catch (err) {
+                alert("Cannot connect to server. Ensure node server.js is running.");
+            }
+        }
+
+        function unlockDashboard() {
+            document.getElementById('adminGate').classList.add('hidden');
+            document.getElementById('adminContent').classList.remove('hidden');
+            refreshData();
+        }
+
+        async function refreshData() {
+            await fetchOrders();
+            await fetchProducts();
+        }
+
+        function setTab(tab) {
+            activeTab = tab;
+            document.getElementById('ordersView').classList.toggle('hidden', tab !== 'orders');
+            document.getElementById('productsView').classList.toggle('hidden', tab !== 'products');
+            
+            const btnO = document.getElementById('tabBtn-orders');
+            const btnP = document.getElementById('tabBtn-products');
+            if(tab === 'orders') {
+                btnO.className = "px-5 py-2.5 rounded-2xl font-bold text-xs uppercase tracking-wider bg-slate-900 text-white transition";
+                btnP.className = "px-5 py-2.5 rounded-2xl font-bold text-xs uppercase tracking-wider text-slate-500 hover:bg-slate-200 transition";
+            } else {
+                btnP.className = "px-5 py-2.5 rounded-2xl font-bold text-xs uppercase tracking-wider bg-slate-900 text-white transition";
+                btnO.className = "px-5 py-2.5 rounded-2xl font-bold text-xs uppercase tracking-wider text-slate-500 hover:bg-slate-200 transition";
+            }
+        }
+
+        function setStatusFilter(filter) {
+            statusFilter = filter;
+            document.querySelectorAll('.status-pill').forEach(btn => {
+                btn.className = "status-pill px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 bg-slate-100";
+                if (btn.innerText === filter || (filter === 'ALL' && btn.innerText === 'All')) {
+                    btn.className = "status-pill px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 text-white";
+                }
+            });
+            renderOrders();
+        }
+
+        // --- ORDER MANAGEMENT ---
+        async function fetchOrders() {
+            try {
+                const res = await fetch('/api/admin/orders');
+                allOrders = await res.json();
+                renderOrders();
+                updateKPIs();
+            } catch (e) {
+                console.error("Order fetch error", e);
+            }
+        }
+
+        function updateKPIs() {
+            const active = allOrders.filter(o => o.status !== 'Completed' && o.status !== 'Cancelled').length;
+            const unpaid = allOrders.filter(o => o.payment_status === 'Pending').length;
+            const revenue = allOrders.filter(o => o.payment_status === 'Paid').reduce((acc, o) => acc + parseFloat(o.total_price), 0);
+
+            document.getElementById('statActive').innerText = active;
+            document.getElementById('statUnpaid').innerText = unpaid;
+            document.getElementById('statRevenue').innerText = `Ksh ${revenue.toFixed(2)}`;
+        }
+
+        function renderOrders() {
+            const showHistory = document.getElementById('historyToggle').checked;
+            const term = (document.getElementById('orderSearch').value || '').toLowerCase();
+            const container = document.getElementById('orderList');
+            
+            const filtered = allOrders.filter(o => {
+                const matchesHistory = showHistory ? true : (o.status !== 'Completed' && o.status !== 'Cancelled');
+                const matchesSearch = o.full_name.toLowerCase().includes(term) || String(o.order_id).includes(term);
+                const matchesStatus = (statusFilter === 'ALL') || (o.status === statusFilter);
+                return matchesHistory && matchesSearch && matchesStatus;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<div class="text-center py-16 bg-white rounded-3xl border border-dashed border-slate-300 text-slate-400 text-xs">No orders in current filter stream.</div>`;
+                return;
+            }
+
+            container.innerHTML = filtered.map(o => `
+                <div class="bg-white border border-slate-100 p-5 rounded-3xl shadow-sm flex flex-col md:flex-row justify-between gap-4 items-start md:items-center">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-1.5">
+                            <span class="font-black text-sm text-slate-900">#${o.order_id}</span>
+                            <span class="px-2.5 py-0.5 bg-slate-100 text-slate-800 rounded-full text-[11px] font-bold">${o.full_name}</span>
+                            <span class="text-[11px] text-slate-400">${new Date(o.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                        <p class="text-xs font-semibold text-orange-950 mb-2.5 bg-orange-50/80 p-2.5 rounded-xl border border-orange-100/60 leading-relaxed">${o.items_summary || 'No items listed'}</p>
+                        <div class="flex flex-wrap gap-3 text-[11px] font-bold uppercase tracking-wider">
+                            <span class="${o.payment_status === 'Paid' ? 'text-emerald-600' : 'text-red-500'}">● ${o.payment_status} (${o.payment_method})</span>
+                            <span class="text-slate-300">|</span>
+                            <span class="text-slate-800 font-extrabold">Ksh ${parseFloat(o.total_price).toFixed(2)}</span>
+                            <span class="text-slate-300">|</span>
+                            <span class="text-blue-600">Pickup: ${new Date(o.pickup_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-2 flex-wrap">
+                        ${o.payment_status === 'Pending' ? `
+                            <button onclick="updateOrder(${o.order_id}, null, 'Paid')" class="bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-xl text-xs font-bold border border-emerald-200 hover:bg-emerald-100 transition">Mark Paid</button>
+                        ` : ''}
+
+                        <!-- Quick advance helpers -->
+                        ${o.status === 'Pending' ? `
+                            <button onclick="updateOrder(${o.order_id}, 'In Progress', null)" class="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-xl text-xs font-bold border border-blue-200 hover:bg-blue-100">Start Prep</button>
+                        ` : ''}
+
+                        ${o.status === 'In Progress' ? `
+                            <button onclick="updateOrder(${o.order_id}, 'Ready', null)" class="bg-amber-50 text-amber-700 px-3 py-1.5 rounded-xl text-xs font-bold border border-amber-200 hover:bg-amber-100">Ready</button>
+                        ` : ''}
+
+                        ${o.status === 'Ready' ? `
+                            <button onclick="updateOrder(${o.order_id}, 'Completed', null)" class="bg-slate-900 text-white px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-slate-800">Done</button>
+                        ` : ''}
+                        
+                        <select onchange="updateOrder(${o.order_id}, this.value, null)" class="bg-slate-50 border p-1.5 rounded-xl text-xs font-bold outline-none cursor-pointer">
+                            <option value="Pending" ${o.status === 'Pending' ? 'selected' : ''}>Pending</option>
+                            <option value="In Progress" ${o.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
+                            <option value="Ready" ${o.status === 'Ready' ? 'selected' : ''}>Ready for Pickup</option>
+                            <option value="Completed" ${o.status === 'Completed' ? 'selected' : ''}>Completed</option>
+                            <option value="Cancelled" ${o.status === 'Cancelled' ? 'selected' : ''}>Cancelled</option>
+                        </select>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function updateOrder(id, status, payment) {
+            const body = {};
+            if(status) body.status = status;
+            if(payment) body.payment_status = payment;
+
+            await fetch(`/api/admin/orders/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            refreshData();
+        }
+
+        // --- PRODUCT MANAGEMENT ---
+        async function fetchProducts() {
+            try {
+                const res = await fetch('/api/products');
+                allProducts = await res.json();
+                renderProductTable();
+            } catch(e) {}
+        }
+
+        function renderProductTable() {
+            const tbody = document.getElementById('productTableBody');
+            tbody.innerHTML = allProducts.map(p => `
+                <tr class="hover:bg-slate-50 border-b border-slate-100 last:border-0">
+                    <td class="p-4 flex items-center gap-3">
+                        <img src="${p.image_url || FALLBACK_IMAGE}" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';" class="w-10 h-10 rounded-xl object-cover border">
+                        <span class="font-bold text-slate-900">${p.name}</span>
+                    </td>
+                    <td class="p-4"><span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-bold uppercase">${p.category}</span></td>
+                    <td class="p-4 font-extrabold text-slate-900">Ksh ${parseFloat(p.price).toFixed(2)}</td>
+                    <td class="p-4">
+                        <span class="px-2 py-1 rounded-md text-xs font-bold ${p.stock_qty < 10 ? 'bg-red-50 text-red-600 border border-red-200' : 'text-slate-600'}">
+                            ${p.stock_qty} units
+                        </span>
+                    </td>
+                    <td class="p-4 flex gap-2">
+                        <button onclick="editProduct(${p.product_id})" class="text-blue-600 hover:underline font-bold">Edit</button>
+                        <button onclick="deleteProduct(${p.product_id})" class="text-red-500 hover:underline font-bold ml-2">Delete</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function openProductModal() {
+            document.getElementById('productForm').reset();
+            document.getElementById('formId').value = '';
+            document.getElementById('modalTitle').innerText = 'Add Bakery Item';
+            document.getElementById('productModal').classList.remove('hidden');
+        }
+
+        function editProduct(id) {
+            const p = allProducts.find(x => x.product_id === id);
+            document.getElementById('formId').value = p.product_id;
+            document.getElementById('formName').value = p.name;
+            document.getElementById('formDesc').value = p.description || '';
+            document.getElementById('formCat').value = p.category;
+            document.getElementById('formPrice').value = p.price;
+            document.getElementById('formStock').value = p.stock_qty;
+            document.getElementById('formImg').value = p.image_url;
+            document.getElementById('modalTitle').innerText = 'Edit Bakery Item';
+            document.getElementById('productModal').classList.remove('hidden');
+        }
+
+        async function saveProduct(e) {
+            e.preventDefault();
+            const data = {
+                product_id: document.getElementById('formId').value || null,
+                name: document.getElementById('formName').value,
+                description: document.getElementById('formDesc').value,
+                category: document.getElementById('formCat').value,
+                price: parseFloat(document.getElementById('formPrice').value),
+                stock_qty: parseInt(document.getElementById('formStock').value),
+                image_url: document.getElementById('formImg').value
+            };
+
+            await fetch('/api/products/manage', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            closeProductModal();
+            refreshData();
+        }
+
+        async function deleteProduct(id) {
+            if(!confirm('Permanently remove this item from the bakery catalog?')) return;
+            await fetch(`/api/products/${id}`, { method: 'DELETE' });
+            refreshData();
+        }
+
+        function closeProductModal() { document.getElementById('productModal').classList.add('hidden'); }
+        function adminLogout() { localStorage.removeItem('bakeryUser'); location.reload(); }
+        function printDailyReport() {
+    const today = new Date().toLocaleDateString('en-GB');
+    const revenue = document.getElementById('statRevenue').innerText;
+    const active = document.getElementById('statActive').innerText;
+    const unpaid = document.getElementById('statUnpaid').innerText;
+
+    const reportWin = window.open('', '', 'width=800,height=600');
+    reportWin.document.write(`
+        <html>
+        <head>
+            <title>CBOOS Daily Operations Report</title>
+            <style>
+                body { font-family: sans-serif; padding: 40px; color: #1e293b; }
+                .header { text-align: center; border-bottom: 2px solid #ea580c; padding-bottom: 20px; }
+                .kpi-grid { display: flex; justify-content: space-between; margin: 30px 0; background: #f8fafc; padding: 20px; border-radius: 8px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }
+                th, td { border: 1px solid #cbd5e1; padding: 10px; text-align: left; }
+                th { background: #f1f5f9; font-weight: bold; }
+                .footer { margin-top: 40px; text-align: center; font-size: 11px; color: #64748b; }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h2>CAMPUS BAKERY OPERATIONS REPORT</h2>
+                <p>System Generated Executive Summary & Audit Sheet</p>
+                <p><strong>Date:</strong> ${today} | <strong>System:</strong> CBOOS v1.0</p>
+            </div>
+            <div class="kpi-grid">
+                <div>Total Settled Revenue: <strong>${revenue}</strong></div>
+                <div>Active Kitchen Orders: <strong>${active}</strong></div>
+                <div>Unpaid Pickups: <strong>${unpaid}</strong></div>
+            </div>
+            <h3>Detailed Transactions Stream</h3>
+            <table>
+                <thead>
+                    <tr><th>Order #</th><th>Customer</th><th>Items Ordered</th><th>Payment</th><th>Total</th></tr>
+                </thead>
+                <tbody>
+                    ${allOrders.map(o => `
+                        <tr>
+                            <td>#${o.order_id}</td>
+                            <td>${o.full_name}</td>
+                            <td>${o.items_summary || 'N/A'}</td>
+                            <td>${o.payment_status} (${o.payment_method})</td>
+                            <td>Ksh ${parseFloat(o.total_price).toFixed(2)}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+            <div class="footer">
+                <p>Campus Bakery Online Ordering System • Automated Audit Facility</p>
+            </div>
+        </body>
+        </html>
+    `);
+    reportWin.document.close();
+    reportWin.focus();
+    reportWin.print();
+}
+    </script>
+</body>
+</html>

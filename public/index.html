@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campus Bakery | Artisanal Delights</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; scroll-behavior: smooth; overflow-x: hidden; }
+        .glass { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(12px); }
+        .cart-slide { transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+        @media print { .no-print { display: none !important; } }
+    </style>
+</head>
+<body class="bg-stone-50 text-stone-900 min-h-screen flex flex-col justify-between">
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed top-5 right-5 z-[100] transform translate-x-[200%] transition-transform duration-300 bg-emerald-600 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 pointer-events-none">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+        </svg>
+        <span id="toastMsg" class="font-semibold text-sm">Added to order!</span>
+    </div>
+
+    <!-- Live Order Tracker Banner -->
+    <div id="orderTracker" class="fixed bottom-0 left-0 right-0 bg-stone-900 text-white p-4 z-40 transform translate-y-full transition-transform duration-500 shadow-2xl border-t border-stone-800 no-print">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-3">
+            <div class="flex items-center gap-3">
+                <span class="relative flex h-3 w-3">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-3 w-3 bg-orange-500"></span>
+                </span>
+                <p class="text-sm">Order <span id="trackId" class="font-mono font-bold text-orange-400">#---</span> &nbsp;|&nbsp; Status: <span id="trackStatus" class="font-bold uppercase tracking-wider text-white">Pending</span></p>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="viewReceipt()" class="bg-stone-800 hover:bg-stone-700 px-4 py-1.5 rounded-xl text-xs font-bold transition">View Receipt</button>
+                <button id="dismissTracker" onclick="closeTracker()" class="hidden text-stone-400 hover:text-white text-xs underline">Dismiss</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header Navigation -->
+    <nav class="sticky top-0 z-30 glass border-b border-stone-200 no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-11 h-11 bg-orange-600 rounded-2xl flex items-center justify-center text-white font-extrabold text-xl italic shadow-lg shadow-orange-600/30">CB</div>
+                <div>
+                    <h1 class="text-xl sm:text-2xl font-extrabold tracking-tight text-orange-950">Strathmore CampusBakery</h1>
+                    <p class="text-[10px] uppercase font-bold tracking-widest text-stone-400">Artisanal Campus Kitchen</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-4 sm:gap-6 font-medium">
+                <a href="admin.html" class="hidden md:inline-block text-xs uppercase font-bold tracking-widest text-stone-500 hover:text-orange-600 transition">Staff Portal</a>
+                
+                <div id="userSection">
+                    <button onclick="toggleModal('loginModal')" class="bg-stone-900 text-white px-5 py-2.5 rounded-full hover:bg-stone-800 transition text-xs font-bold">Login</button>
+                </div>
+
+                <button onclick="toggleCart()" class="relative p-3 bg-orange-100/70 hover:bg-orange-100 rounded-2xl text-orange-950 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                    </svg>
+                    <span id="cartCount" class="absolute -top-1.5 -right-1.5 bg-orange-600 text-white text-[11px] w-5 h-5 rounded-full flex items-center justify-center font-bold shadow-md">0</span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Banner -->
+    <header class="relative h-[360px] flex items-center justify-center text-center text-white no-print">
+        <img src="https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=1600&q=80" class="absolute inset-0 w-full h-full object-cover brightness-[0.38]" alt="Bakery Loaves">
+        <div class="relative z-10 px-4 max-w-2xl">
+            <span class="inline-block px-3 py-1 bg-white/20 backdrop-blur rounded-full text-xs font-semibold uppercase tracking-widest mb-3">Oven-Fresh Daily</span>
+            <h2 class="text-3xl sm:text-5xl font-extrabold mb-3 tracking-tight">Handcrafted on Campus</h2>
+            <p class="text-stone-300 mb-6 text-sm sm:text-base font-normal">Fresh sourdough, warm pastries, and rich coffees prepared for your study breaks.</p>
+            
+            <div class="max-w-lg mx-auto relative">
+                <input type="text" id="search" oninput="filterProducts()" placeholder="Search croissants, sourdough, cakes, latte..." class="w-full pl-5 pr-12 py-3.5 rounded-2xl text-stone-900 shadow-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm">
+                <div class="absolute right-4 top-3.5 text-stone-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Catalog Section -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-10 flex-1 w-full no-print">
+        <!-- Category Filter Pills -->
+        <div class="flex overflow-x-auto gap-2 pb-6 no-scrollbar items-center">
+            <button onclick="setCategory('All')" class="cat-pill px-5 py-2 rounded-xl text-xs font-bold transition active-pill bg-stone-900 text-white">All Menu</button>
+            <button onclick="setCategory('Bread')" class="cat-pill px-5 py-2 rounded-xl text-xs font-bold transition text-stone-600 bg-white border border-stone-200 hover:border-stone-400">Bread</button>
+            <button onclick="setCategory('Cakes')" class="cat-pill px-5 py-2 rounded-xl text-xs font-bold transition text-stone-600 bg-white border border-stone-200 hover:border-stone-400">Cakes</button>
+            <button onclick="setCategory('Pastries')" class="cat-pill px-5 py-2 rounded-xl text-xs font-bold transition text-stone-600 bg-white border border-stone-200 hover:border-stone-400">Pastries</button>
+            <button onclick="setCategory('Cookies')" class="cat-pill px-5 py-2 rounded-xl text-xs font-bold transition text-stone-600 bg-white border border-stone-200 hover:border-stone-400">Cookies</button>
+            <button onclick="setCategory('Drinks')" class="cat-pill px-5 py-2 rounded-xl text-xs font-bold transition text-stone-600 bg-white border border-stone-200 hover:border-stone-400">Drinks</button>
+        </div>
+
+        <!-- Product Grid -->
+        <div id="productGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <!-- Dynamic Cards -->
+        </div>
+    </main>
+
+    <!-- Shopping Cart Drawer -->
+    <div id="cartSidebar" class="fixed inset-0 z-50 hidden no-print">
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="toggleCart()"></div>
+        <div class="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl flex flex-col transform translate-x-full cart-slide">
+            <div class="p-5 border-b flex justify-between items-center bg-stone-50">
+                <div>
+                    <h3 class="text-base font-extrabold text-stone-900">Your Basket</h3>
+                    <p class="text-xs text-stone-400">Pickup ready in ~15 mins</p>
+                </div>
+                <button onclick="toggleCart()" class="text-stone-400 hover:text-black p-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            
+            <div id="cartItems" class="flex-1 overflow-y-auto p-5 space-y-3">
+                <!-- Items list -->
+            </div>
+
+            <div class="p-5 border-t bg-stone-50">
+                <div class="flex justify-between items-baseline mb-4">
+                    <span class="text-stone-400 uppercase text-[11px] font-bold tracking-widest">Order Total</span>
+                    <span id="cartTotal" class="text-2xl font-extrabold text-orange-950">Ksh 0.00</span>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-xs font-bold uppercase text-stone-500 mb-1">Select Pickup Time</label>
+                    <input type="datetime-local" id="pickupTime" class="w-full p-2.5 border rounded-xl text-xs bg-white outline-none focus:ring-2 focus:ring-orange-500">
+                </div>
+
+                <div class="space-y-2">
+                    <button onclick="initiatePayment('M-Pesa')" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold transition text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm">
+                        <span>Pay with M-Pesa</span>
+                    </button>
+                    <button onclick="initiatePayment('Card')" class="w-full bg-slate-900 hover:bg-slate-800 text-white py-3 rounded-xl font-bold transition text-xs uppercase tracking-wider shadow-sm">
+                        Pay with Card
+                    </button>
+                    <button onclick="checkoutDirect('Cash on Pickup')" class="w-full bg-white hover:bg-stone-100 text-stone-800 border border-stone-300 py-3 rounded-xl font-bold transition text-xs uppercase tracking-wider">
+                        Pay on Pickup (Cash / Till)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- M-Pesa Phone Entry & Simulation Modal -->
+    <div id="mpesaModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeMpesa()"></div>
+        <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-sm w-full relative shadow-2xl text-center">
+            
+            <!-- Step 1: Prompt Phone Number -->
+            <div id="mpesaStepInput">
+                <div class="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4 font-extrabold text-2xl shadow-inner">
+                    M
+                </div>
+                <h3 class="text-lg font-bold text-stone-900 mb-1">M-Pesa Express Checkout</h3>
+                <p class="text-stone-500 text-xs mb-5">Enter your Safaricom mobile number to receive the simulated STK PIN push.</p>
+                
+                <div class="text-left mb-4">
+                    <label class="block text-[11px] font-bold uppercase text-stone-400 mb-1">M-Pesa Phone Number</label>
+                    <input type="tel" id="mpesaPhone" placeholder="0712345678 or 254..." class="w-full p-3 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-stone-50 font-mono">
+                    <p class="text-[10px] text-stone-400 mt-1">Accepts 07XX, 01XX or 2547XX formats</p>
+                </div>
+
+                <div class="bg-stone-100 p-3 rounded-xl mb-5 flex justify-between items-center text-xs">
+                    <span class="text-stone-500">Amount Due:</span>
+                    <span id="mpesaDueAmount" class="font-bold text-stone-900 text-sm"></span>
+                </div>
+
+                <button onclick="submitMpesaPayment()" class="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold hover:bg-emerald-700 transition text-xs uppercase tracking-wider shadow-md">
+                    Send STK Push
+                </button>
+            </div>
+
+            <!-- Step 2: Simulated Countdown waiting for PIN -->
+            <div id="mpesaStepWaiting" class="hidden py-4">
+                <div class="w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <h4 class="font-bold text-stone-900 text-base mb-1">STK Push Sent!</h4>
+                <p class="text-xs text-stone-500 mb-2">Prompt dispatched to <span id="mpesaTargetPhone" class="font-mono font-bold text-stone-800"></span>.</p>
+                <p class="text-xs text-stone-400">Simulating authorization (checking PIN)...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Credit/Debit Card Entry Modal -->
+    <div id="cardModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeCardModal()"></div>
+        <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full relative shadow-2xl">
+            <h3 class="text-lg font-bold text-stone-900 mb-1">Pay with Debit / Credit Card</h3>
+            <p class="text-stone-500 text-xs mb-5">Simulated PCI-compliant payment gateway.</p>
+
+            <form onsubmit="submitCardPayment(event)" class="space-y-3.5 text-xs">
+                <div>
+                    <label class="block font-bold uppercase text-stone-400 mb-1">Cardholder Full Name</label>
+                    <input type="text" id="cardName" required placeholder="John Doe" class="w-full p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-stone-800 bg-stone-50 text-sm">
+                </div>
+                <div>
+                    <label class="block font-bold uppercase text-stone-400 mb-1">Card Number</label>
+                    <input type="text" id="cardNumber" maxlength="19" required placeholder="4242 •••• •••• 4242" class="w-full p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-stone-800 bg-stone-50 font-mono text-sm">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-bold uppercase text-stone-400 mb-1">Expiry Date</label>
+                        <input type="text" id="cardExpiry" maxlength="5" required placeholder="MM/YY" class="w-full p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-stone-800 bg-stone-50 font-mono text-sm">
+                    </div>
+                    <div>
+                        <label class="block font-bold uppercase text-stone-400 mb-1">CVV / CVC</label>
+                        <input type="password" id="cardCvv" maxlength="3" required placeholder="•••" class="w-full p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-stone-800 bg-stone-50 font-mono text-sm">
+                    </div>
+                </div>
+
+                <div class="bg-stone-100 p-3 rounded-xl mt-3 flex justify-between items-center">
+                    <span class="text-stone-500">Total Deduction:</span>
+                    <span id="cardDueAmount" class="font-bold text-stone-900 text-sm"></span>
+                </div>
+
+                <button type="submit" id="cardSubmitBtn" class="w-full bg-slate-900 text-white py-3 rounded-xl font-bold hover:bg-slate-800 transition text-xs uppercase tracking-wider mt-2 shadow-md">
+                    Authorize Payment
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Official Printable Receipt Modal -->
+    <div id="receiptModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/60 no-print" onclick="toggleModal('receiptModal')"></div>
+        <div class="bg-white p-6 sm:p-8 rounded-3xl shadow-2xl max-w-md w-full relative">
+            <div class="text-center border-b pb-4 mb-4">
+                <h2 class="text-xl font-black tracking-tight text-stone-900">CAMPUS BAKERY</h2>
+                <p class="text-[10px] text-stone-400 uppercase tracking-widest font-bold mt-0.5">Order Confirmation Receipt</p>
+                <p id="receiptDate" class="text-xs text-stone-400 mt-1 font-mono"></p>
+            </div>
+            
+            <div id="receiptBody" class="space-y-2 mb-4 max-h-60 overflow-y-auto"></div>
+            
+            <div class="border-t pt-3 flex justify-between font-extrabold text-base">
+                <span>TOTAL</span>
+                <span id="receiptTotal" class="text-orange-950"></span>
+            </div>
+            
+            <div class="mt-4 text-center text-xs text-stone-400 border-t pt-3">
+                <p>Present order reference at counter pickup:</p>
+                <p id="receiptOrderId" class="mt-1 font-mono font-bold text-stone-900 text-sm"></p>
+            </div>
+
+            <div class="flex gap-2 mt-6 no-print">
+                <button onclick="window.print()" class="flex-1 bg-stone-900 text-white py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider">Print Receipt</button>
+                <button onclick="toggleModal('receiptModal')" class="px-4 py-2.5 border rounded-xl font-bold text-xs text-stone-600">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Student Auth Modal -->
+    <div id="loginModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="toggleModal('loginModal')"></div>
+        <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-sm w-full relative shadow-2xl">
+            <h3 id="authTitle" class="text-xl font-bold mb-5 text-center text-stone-900">Sign In</h3>
+            <form id="authForm" onsubmit="handleAuth(event)" class="space-y-3.5 text-xs">
+                <div id="nameField" class="hidden">
+                    <label class="block font-bold uppercase text-stone-400 mb-1">Full Name</label>
+                    <input type="text" id="authName" class="w-full p-2.5 border rounded-xl bg-stone-50 text-sm">
+                </div>
+                <div>
+                    <label class="block font-bold uppercase text-stone-400 mb-1">Email Address</label>
+                    <input type="email" id="authEmail" required class="w-full p-2.5 border rounded-xl bg-stone-50 text-sm" placeholder="john@student.com">
+                </div>
+                <div>
+                    <label class="block font-bold uppercase text-stone-400 mb-1">Password</label>
+                    <input type="password" id="authPass" required class="w-full p-2.5 border rounded-xl bg-stone-50 text-sm" placeholder="••••••••">
+                </div>
+                <button type="submit" class="w-full bg-orange-600 text-white py-3 rounded-xl font-bold hover:bg-orange-700 transition mt-2 text-xs uppercase tracking-wider shadow-md">Continue</button>
+            </form>
+            <p class="text-center mt-5 text-xs text-stone-500">
+                <span id="authToggleText">New to Campus Bakery?</span> 
+                <button onclick="toggleAuthMode()" id="authToggleButton" class="text-orange-600 font-bold ml-1 underline">Create Account</button>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        let products = [];
+        let cart = [];
+        let user = JSON.parse(localStorage.getItem('bakeryUser')) || null;
+        let selectedCategory = 'All';
+        let activeOrderId = localStorage.getItem('activeOrderId') || null;
+        let isLogin = true;
+
+        const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=800&q=80";
+
+        window.onload = () => {
+            fetchProducts();
+            updateUI();
+            if(activeOrderId) startTracking(activeOrderId);
+        };
+
+        // --- AUTH LOGIC ---
+        function toggleModal(id) {
+            document.getElementById(id).classList.toggle('hidden');
+        }
+
+        function toggleAuthMode() {
+            isLogin = !isLogin;
+            document.getElementById('authTitle').innerText = isLogin ? 'Sign In' : 'Create Account';
+            document.getElementById('nameField').classList.toggle('hidden', isLogin);
+            document.getElementById('authToggleText').innerText = isLogin ? 'New to Campus Bakery?' : 'Already have an account?';
+            document.getElementById('authToggleButton').innerText = isLogin ? 'Create Account' : 'Sign In';
+        }
+
+        async function handleAuth(e) {
+            e.preventDefault();
+            const email = document.getElementById('authEmail').value;
+            const password = document.getElementById('authPass').value;
+            const full_name = document.getElementById('authName').value;
+
+            const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
+            const body = isLogin ? { email, password } : { email, password, full_name };
+
+            try {
+                const res = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const data = await res.json();
+                
+                if (res.ok) {
+                    if (isLogin) {
+                        user = data;
+                        localStorage.setItem('bakeryUser', JSON.stringify(user));
+                        toggleModal('loginModal');
+                        updateUI();
+                        showToast(`Welcome back, ${user.full_name}!`);
+                    } else {
+                        alert('Account created! You can now log in.');
+                        toggleAuthMode();
+                    }
+                } else {
+                    alert(data.error || 'Authentication failed');
+                }
+            } catch (err) { alert('Server connection failed.'); }
+        }
+
+        function logout() {
+            localStorage.removeItem('bakeryUser');
+            user = null;
+            location.reload();
+        }
+
+        // --- CATALOG LOGIC ---
+        async function fetchProducts() {
+            try {
+                const res = await fetch('/api/products');
+                products = await res.json();
+                renderProducts();
+            } catch (e) {
+                console.error("Products error:", e);
+            }
+        }
+
+        function renderProducts() {
+            const grid = document.getElementById('productGrid');
+            const term = (document.getElementById('search').value || '').toLowerCase();
+            
+            const filtered = products.filter(p => 
+                (selectedCategory === 'All' || p.category === selectedCategory) &&
+                (p.name.toLowerCase().includes(term) || (p.description && p.description.toLowerCase().includes(term)))
+            );
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `<div class="col-span-full text-center py-16 text-stone-400 text-sm">No bakery items match your search.</div>`;
+                return;
+            }
+
+            grid.innerHTML = filtered.map(p => `
+                <div class="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition duration-300 border border-stone-100 flex flex-col justify-between group">
+                    <div class="h-48 relative overflow-hidden bg-stone-100">
+                        <img src="${p.image_url || FALLBACK_IMAGE}" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" alt="${p.name}">
+                        <div class="absolute top-3 right-3 bg-white/95 backdrop-blur px-3 py-1 rounded-full font-extrabold text-xs text-orange-950 shadow-sm">
+                            Ksh ${parseFloat(p.price).toFixed(2)}
+                        </div>
+                    </div>
+                    <div class="p-5 flex-1 flex flex-col justify-between">
+                        <div>
+                            <div class="flex justify-between items-start gap-2 mb-1">
+                                <h3 class="font-bold text-sm text-stone-900 group-hover:text-orange-600 transition">${p.name}</h3>
+                                <span class="text-[9px] px-2 py-0.5 bg-stone-100 rounded text-stone-500 uppercase font-bold tracking-wider">${p.category}</span>
+                            </div>
+                            <p class="text-stone-400 text-xs mb-4 line-clamp-2 leading-relaxed">${p.description || ''}</p>
+                        </div>
+                        <div class="flex items-center justify-between pt-3 border-t border-stone-100">
+                            <span class="text-[11px] font-semibold ${p.stock_qty < 10 ? 'text-red-500 font-bold' : 'text-stone-400'}">
+                                ${p.stock_qty > 0 ? `${p.stock_qty} available` : 'Sold Out'}
+                            </span>
+                            <button onclick="addToCart(${p.product_id})" ${p.stock_qty <= 0 ? 'disabled' : ''} class="bg-stone-900 text-white p-2.5 rounded-xl hover:bg-orange-600 transition disabled:opacity-25 disabled:pointer-events-none shadow-sm">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" /></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function setCategory(cat) {
+            selectedCategory = cat;
+            document.querySelectorAll('.cat-pill').forEach(btn => {
+                btn.className = "cat-pill px-5 py-2 rounded-xl text-xs font-bold transition text-stone-600 bg-white border border-stone-200 hover:border-stone-400";
+                if(btn.innerText === cat || (cat === 'All' && btn.innerText === 'All Menu')) {
+                    btn.className = "cat-pill px-5 py-2 rounded-xl text-xs font-bold transition active-pill bg-stone-900 text-white";
+                }
+            });
+            renderProducts();
+        }
+
+        function filterProducts() { renderProducts(); }
+
+        // --- CART LOGIC ---
+        function addToCart(id) {
+            const product = products.find(p => p.product_id === id);
+            const exists = cart.find(item => item.product_id === id);
+            
+            if (exists) {
+                if (exists.quantity >= product.stock_qty) return alert('Maximum kitchen stock reached for this item.');
+                exists.quantity++;
+            } else {
+                cart.push({ ...product, quantity: 1 });
+            }
+            showToast(`Added ${product.name}`);
+            updateUI();
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            document.getElementById('toastMsg').innerText = msg || 'Added to order!';
+            t.classList.remove('translate-x-[200%]');
+            setTimeout(() => t.classList.add('translate-x-[200%]'), 2500);
+        }
+
+        function updateUI() {
+            const count = cart.reduce((acc, item) => acc + item.quantity, 0);
+            document.getElementById('cartCount').innerText = count;
+            
+            const total = cart.reduce((acc, item) => acc + (parseFloat(item.price) * item.quantity), 0);
+            document.getElementById('cartTotal').innerText = `Ksh ${total.toFixed(2)}`;
+
+            const cartList = document.getElementById('cartItems');
+            if (cart.length === 0) {
+                cartList.innerHTML = `<div class="text-center py-16 text-stone-300 text-xs font-semibold"><p>No items in basket yet.</p></div>`;
+            } else {
+                cartList.innerHTML = cart.map(item => `
+                    <div class="flex gap-3 bg-stone-50 p-3 rounded-2xl items-center border border-stone-100">
+                        <img src="${item.image_url || FALLBACK_IMAGE}" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';" class="w-12 h-12 rounded-xl object-cover">
+                        <div class="flex-1 min-w-0">
+                            <h4 class="font-bold text-xs truncate text-stone-900">${item.name}</h4>
+                            <p class="text-stone-400 text-[11px]">Ksh ${parseFloat(item.price).toFixed(2)}</p>
+                            <div class="flex items-center gap-2 mt-1">
+                                <button onclick="changeQty(${item.product_id}, -1)" class="w-5 h-5 border rounded-lg flex items-center justify-center text-xs bg-white font-bold">-</button>
+                                <span class="text-xs font-bold">${item.quantity}</span>
+                                <button onclick="changeQty(${item.product_id}, 1)" class="w-5 h-5 border rounded-lg flex items-center justify-center text-xs bg-white font-bold">+</button>
+                            </div>
+                        </div>
+                        <button onclick="removeFromCart(${item.product_id})" class="text-stone-300 hover:text-red-500 p-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                        </button>
+                    </div>
+                `).join('');
+            }
+
+            const userSection = document.getElementById('userSection');
+            if (user) {
+                userSection.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-bold text-stone-800">Hi, ${user.full_name ? user.full_name.split(' ')[0] : 'User'}</span>
+                        <button onclick="logout()" class="text-[10px] text-red-500 font-bold uppercase tracking-widest hover:underline">Logout</button>
+                    </div>
+                `;
+            }
+        }
+
+        function changeQty(id, delta) {
+            const item = cart.find(i => i.product_id === id);
+            const prod = products.find(p => p.product_id === id);
+            if (item.quantity + delta > prod.stock_qty) return alert('Maximum stock available reached.');
+            item.quantity += delta;
+            if (item.quantity <= 0) removeFromCart(id);
+            updateUI();
+        }
+
+        function removeFromCart(id) {
+            cart = cart.filter(i => i.product_id !== id);
+            updateUI();
+        }
+
+        function toggleCart() {
+            const sidebar = document.getElementById('cartSidebar');
+            const inner = sidebar.querySelector('.cart-slide');
+            if (sidebar.classList.contains('hidden')) {
+                sidebar.classList.remove('hidden');
+                setTimeout(() => inner.classList.remove('translate-x-full'), 10);
+            } else {
+                inner.classList.add('translate-x-full');
+                setTimeout(() => sidebar.classList.add('hidden'), 300);
+            }
+        }
+
+        // --- PAYMENT ROUTING ---
+        function getCartTotal() {
+            return cart.reduce((acc, item) => acc + (parseFloat(item.price) * item.quantity), 0);
+        }
+
+        function validateCheckoutPreconditions() {
+            if (!user) {
+                toggleModal('loginModal');
+                return false;
+            }
+            if (cart.length === 0) {
+                alert('Your basket is empty!');
+                return false;
+            }
+            const pickup = document.getElementById('pickupTime').value;
+            if (!pickup) {
+                alert('Please select your pickup time first.');
+                return false;
+            }
+            return true;
+        }
+
+        function initiatePayment(method) {
+            if (!validateCheckoutPreconditions()) return;
+
+            const total = getCartTotal();
+
+            if (method === 'M-Pesa') {
+                document.getElementById('mpesaDueAmount').innerText = `Ksh ${total.toFixed(2)}`;
+                document.getElementById('mpesaStepInput').classList.remove('hidden');
+                document.getElementById('mpesaStepWaiting').classList.add('hidden');
+                document.getElementById('mpesaModal').classList.remove('hidden');
+            } else if (method === 'Card') {
+                document.getElementById('cardDueAmount').innerText = `Ksh ${total.toFixed(2)}`;
+                document.getElementById('cardModal').classList.remove('hidden');
+            }
+        }
+
+        function closeMpesa() { document.getElementById('mpesaModal').classList.add('hidden'); }
+        function closeCardModal() { document.getElementById('cardModal').classList.add('hidden'); }
+
+        // --- SUBMIT M-PESA PAYMENT ---
+        async function submitMpesaPayment() {
+            const phone = document.getElementById('mpesaPhone').value.trim();
+            // Validate Kenyan phone (e.g. 0712345678, 0112345678, 254712345678)
+            const phoneRegex = /^(?:254|\+254|0)?([71](?:(?:0[0-8])|(?:[12][0-9])|(?:9[0-9])|(?:4[0-3])|(?:5[7-9])|(?:6[8-9]))[0-9]{6})$/;
+
+            if (!phone || !phoneRegex.test(phone.replace(/\s+/g, ''))) {
+                return alert('Please enter a valid Safaricom phone number (e.g., 0712345678 or 254712345678).');
+            }
+
+            // Step 2: Show simulation
+            document.getElementById('mpesaTargetPhone').innerText = phone;
+            document.getElementById('mpesaStepInput').classList.add('hidden');
+            document.getElementById('mpesaStepWaiting').classList.remove('hidden');
+
+            // Wait 3 seconds to simulate student typing PIN on their phone
+            await new Promise(r => setTimeout(r, 3000));
+            closeMpesa();
+
+            // Complete actual order placement in DB
+            executeFinalOrder('M-Pesa');
+        }
+
+        // --- SUBMIT CARD PAYMENT ---
+        async function submitCardPayment(e) {
+            e.preventDefault();
+            const num = document.getElementById('cardNumber').value.replace(/\s+/g, '');
+            if (num.length < 13) return alert('Please enter a valid 16-digit card number.');
+
+            const btn = document.getElementById('cardSubmitBtn');
+            btn.innerText = "Processing Authorization...";
+            btn.disabled = true;
+
+            await new Promise(r => setTimeout(r, 2200));
+            
+            btn.innerText = "Authorize Payment";
+            btn.disabled = false;
+            closeCardModal();
+
+            executeFinalOrder('Card');
+        }
+
+        // --- DIRECT CHECKOUT (PAY ON PICKUP) ---
+        function checkoutDirect(method) {
+            if (!validateCheckoutPreconditions()) return;
+            executeFinalOrder(method);
+        }
+
+        // --- DATABASE ORDER CREATION (ACID TRANSACTION ON BACKEND) ---
+        async function executeFinalOrder(method) {
+            const total = getCartTotal();
+            const pickupTime = document.getElementById('pickupTime').value;
+
+            const orderData = {
+                user_id: user.user_id,
+                items: cart,
+                total_price: total,
+                payment_method: method,
+                pickup_time: pickupTime
+            };
+
+            try {
+                const res = await fetch('/api/orders/place', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(orderData)
+                });
+                const data = await res.json();
+                
+                if (res.ok) {
+                    activeOrderId = data.order_id;
+                    localStorage.setItem('activeOrderId', activeOrderId);
+                    toggleCart();
+                    prepareReceipt(data.order_id, cart, total);
+                    cart = [];
+                    updateUI();
+                    fetchProducts(); // Refresh stock
+                    startTracking(data.order_id);
+                    toggleModal('receiptModal');
+                } else {
+                    alert(data.error || 'Order placement failed');
+                }
+            } catch (err) { alert('Communication error with bakery server.'); }
+        }
+
+        // --- TRACKING & RECEIPT ---
+        function startTracking(orderId) {
+            const tracker = document.getElementById('orderTracker');
+            document.getElementById('trackId').innerText = `#${orderId}`;
+            tracker.classList.remove('translate-y-full');
+
+            const poll = setInterval(async () => {
+                try {
+                    const res = await fetch(`/api/orders/track/${orderId}`);
+                    const data = await res.json();
+                    
+                    if (!data) return;
+                    const statusEl = document.getElementById('trackStatus');
+                    statusEl.innerText = data.status;
+                    
+                    if (data.status === 'Ready') {
+                        statusEl.className = 'font-black uppercase tracking-wider text-amber-300 animate-pulse';
+                    } else if (data.status === 'Completed' || data.status === 'Cancelled') {
+                        statusEl.className = 'font-bold uppercase tracking-wider text-emerald-400';
+                        document.getElementById('dismissTracker').classList.remove('hidden');
+                        clearInterval(poll);
+                    }
+                } catch(e) {}
+            }, 5000);
+        }
+
+        function closeTracker() {
+            document.getElementById('orderTracker').classList.add('translate-y-full');
+            localStorage.removeItem('activeOrderId');
+            activeOrderId = null;
+        }
+
+        function prepareReceipt(id, items, total) {
+            document.getElementById('receiptDate').innerText = new Date().toLocaleString();
+            document.getElementById('receiptOrderId').innerText = `REF: #CBOOS-${id}`;
+            document.getElementById('receiptTotal').innerText = `Ksh ${parseFloat(total).toFixed(2)}`;
+            document.getElementById('receiptBody').innerHTML = items.map(i => `
+                <div class="flex justify-between text-xs py-1.5 border-b border-stone-100">
+                    <span class="text-stone-700">${i.name} × ${i.quantity}</span>
+                    <span class="font-bold text-stone-900">Ksh ${(parseFloat(i.price) * i.quantity).toFixed(2)}</span>
+                </div>
+            `).join('');
+        }
+
+        function viewReceipt() {
+            toggleModal('receiptModal');
+        }
+    </script>
+</body>
+</html>
